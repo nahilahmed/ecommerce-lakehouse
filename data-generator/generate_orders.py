@@ -1,5 +1,4 @@
 # Databricks notebook source
-
 # MAGIC %md
 # MAGIC # Generate Orders — ShopMetrics Inc.
 # MAGIC **FR-001** — Synthetic order data for batch ingestion.
@@ -33,9 +32,9 @@ num_new = int(dbutils.widgets.get("num_new"))
 num_status_changes = int(dbutils.widgets.get("num_status_changes"))
 
 HISTORICAL_COUNT = 100_000
-ORDERS_VOLUME = "/Volumes/ecommerce/bronze/raw_data/orders"
-CUSTOMERS_VOLUME = "/Volumes/ecommerce/bronze/raw_data/customers"
-PRODUCTS_VOLUME = "/Volumes/ecommerce/bronze/raw_data/products"
+ORDERS_VOLUME = "/Volumes/shopmetrics_ecommerce/bronze/raw_data/orders"
+CUSTOMERS_VOLUME = "/Volumes/shopmetrics_ecommerce/bronze/raw_data/customers"
+PRODUCTS_VOLUME = "/Volumes/shopmetrics_ecommerce/bronze/raw_data/products"
 FIELDNAMES = ["order_id", "customer_id", "product_id", "order_date", "total_amount", "status"]
 
 # BRD-defined statuses

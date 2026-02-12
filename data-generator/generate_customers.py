@@ -1,5 +1,4 @@
 # Databricks notebook source
-
 # MAGIC %md
 # MAGIC # Generate Customers — ShopMetrics Inc.
 # MAGIC **FR-001** — Synthetic customer data for batch ingestion.
@@ -30,8 +29,8 @@ num_new = int(dbutils.widgets.get("num_new"))
 num_updates = int(dbutils.widgets.get("num_updates"))
 
 HISTORICAL_COUNT = 10_000
-VOLUME_PATH = "/Volumes/ecommerce/bronze/raw_data/customers"
-FIELDNAMES = ["customer_id", "email", "region", "signup_date"]
+VOLUME_PATH = "/Volumes/shopmetrics_ecommerce/bronze/raw_data"
+FIELDNAMES = ["customer_id", "name", "email", "region", "signup_date"]
 
 print(f"Mode: {mode}")
 if mode == "incremental":
@@ -108,6 +107,7 @@ def generate_customer(seq: int) -> dict:
     last = random.choice(LAST_NAMES)
     return {
         "customer_id": f"CUST-{seq:06d}",
+        "name": f"{first} {last}",
         "email": generate_email(first, last),
         "region": random.choice(REGIONS),
         "signup_date": (SIGNUP_START + timedelta(days=random.randint(0, SIGNUP_RANGE_DAYS))).isoformat(),
@@ -211,7 +211,7 @@ print(f"Total records in delta file: {len(rows):,}")
 
 # COMMAND ----------
 
-output_path = f"{VOLUME_PATH}/{filename}"
+output_path = f"{VOLUME_PATH}/customers/{filename}"
 
 with open(output_path, "w", newline="") as f:
     writer = csv.DictWriter(f, fieldnames=FIELDNAMES)

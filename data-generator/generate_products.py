@@ -1,5 +1,4 @@
 # Databricks notebook source
-
 # MAGIC %md
 # MAGIC # Generate Products — ShopMetrics Inc.
 # MAGIC **FR-001** — Synthetic product data for batch ingestion.
@@ -30,7 +29,7 @@ num_new = int(dbutils.widgets.get("num_new"))
 num_updates = int(dbutils.widgets.get("num_updates"))
 
 HISTORICAL_COUNT = 1_000
-VOLUME_PATH = "/Volumes/ecommerce/bronze/raw_data/products"
+VOLUME_PATH = "/Volumes/shopmetrics_ecommerce/bronze/raw_data/products"
 FIELDNAMES = ["product_id", "product_name", "category", "price"]
 
 print(f"Mode: {mode}")

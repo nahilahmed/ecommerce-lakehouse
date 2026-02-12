@@ -6,10 +6,10 @@
 ## Week 1 — Foundation & Batch Data Setup
 
 ### Day 1 — Databricks Workspace Setup
-- [ ] Sign up for Databricks Free Edition
-- [ ] Create Unity Catalog: catalog=ecommerce, schemas=bronze/silver/gold
-- [ ] Create volume: ecommerce.bronze.raw_data
-- [ ] Verify Unity Catalog lineage tracking enabled
+- [x] Sign up for Databricks Free Edition
+- [x] Create Unity Catalog: catalog=shopmetrics_ecommerce, schemas=bronze/silver/gold
+- [x] Create volume: ecommerce.bronze.raw_data
+- [x] Verify Unity Catalog lineage tracking enabled
 
 ### Day 2 — GitHub Repo Setup
 - [x] Create GitHub repo with README, .gitignore
@@ -20,13 +20,13 @@
 ### Day 3 — Data Generators (Customers + Orders)
 - [x] `data-generator/generate_customers.py` — 10K customers, historical + incremental with attribute changes
 - [x] `data-generator/generate_orders.py` — 100K orders, historical + incremental with status transitions
-- [ ] Run generate_customers.py (historical) in Databricks
-- [ ] Run generate_orders.py (historical) in Databricks
+- [x] Run generate_customers.py (historical) in Databricks
+- [x] Run generate_orders.py (historical) in Databricks
 
 ### Day 4 — Data Generator (Products) + Bronze Ingestion
 - [x] `data-generator/generate_products.py` — 1K products across 8 categories, historical + incremental with price changes
-- [ ] Run generate_products.py (historical) in Databricks
-- [ ] Upload/verify all CSVs in ecommerce.bronze.raw_data volume
+- [x] Run generate_products.py (historical) in Databricks
+- [x] Upload/verify all CSVs in ecommerce.bronze.raw_data volume
 - [ ] Create src/bronze/ingest_orders.py — add ingested_at, source_file audit columns
 - [ ] Write to ecommerce.bronze.orders_raw — verify schema matches BRD §7.2
 - [ ] Test with SELECT, COUNT, DESCRIBE
