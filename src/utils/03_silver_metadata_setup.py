@@ -8,6 +8,11 @@
 # MAGIC - `fact`: Fact tables with deduplication (e.g., orders_clean)
 # MAGIC - `scd_type1`: Simple dimensions with overwrite, no history (e.g., dim_products)
 # MAGIC - `scd_type2`: Dimensions with full history tracking (e.g., dim_customers)
+# MAGIC
+# MAGIC **Dimension Joins (for Fact Tables):**
+# MAGIC - Maps natural keys → surrogate keys from dimension tables
+# MAGIC - For SCD Type 2 dimensions: Uses `effective_date_col` for point-in-time joins
+# MAGIC - Example: Order on 2024-01-15 joins with customer record effective on that date
 
 # COMMAND ----------
 
@@ -40,6 +45,9 @@
 # MAGIC   -- Column Transformations (JSON for flexibility)
 # MAGIC   column_mappings STRING COMMENT 'JSON: {"bronze_col": "silver_col"} or pass-through',
 # MAGIC   derived_columns STRING COMMENT 'JSON: {"new_col": "expression"} for calculated fields',
+# MAGIC
+# MAGIC   -- Dimension Joins (for fact tables)
+# MAGIC   dimension_joins STRING COMMENT 'JSON array: [{"dim_table": "silver.dim_customers", "natural_key": "customer_id", "surrogate_key": "customer_sk", "effective_date_col": "order_date", "join_type": "left"}]',
 # MAGIC
 # MAGIC   -- Data Quality Rules
 # MAGIC   dq_rules STRING COMMENT 'JSON array: [{"column": "order_id", "rule": "not_null", "threshold": 0.01}]',
@@ -79,6 +87,7 @@
 # MAGIC   surrogate_key_column,
 # MAGIC   column_mappings,
 # MAGIC   derived_columns,
+# MAGIC   dimension_joins,
 # MAGIC   dq_rules,
 # MAGIC   business_rules,
 # MAGIC   is_active,
@@ -99,6 +108,7 @@
 # MAGIC     NULL,
 # MAGIC     '{"order_id": "order_id", "customer_id": "customer_id", "product_id": "product_id", "order_date": "order_date", "total_amount": "total_amount", "status": "status"}',
 # MAGIC     NULL,
+# MAGIC     '[{"dim_table": "shopmetrics_ecommerce.silver.dim_customers", "natural_key": "customer_id", "surrogate_key": "customer_sk", "effective_date_col": "order_date", "join_type": "left"}, {"dim_table": "shopmetrics_ecommerce.silver.dim_products", "natural_key": "product_id", "surrogate_key": "product_sk", "join_type": "left"}]',
 # MAGIC     '[{"column": "order_id", "rule": "not_null", "threshold": 0.01}, {"column": "total_amount", "rule": "positive"}]',
 # MAGIC     '{"status": ["pending", "completed", "cancelled", "refunded"]}',
 # MAGIC     TRUE,
@@ -119,6 +129,7 @@
 # MAGIC     'customer_sk',
 # MAGIC     '{"customer_id": "customer_id", "email": "email", "region": "region", "signup_date": "signup_date"}',
 # MAGIC     NULL,
+# MAGIC     NULL,
 # MAGIC     '[{"column": "customer_id", "rule": "not_null", "threshold": 0}]',
 # MAGIC     NULL,
 # MAGIC     TRUE,
@@ -138,6 +149,7 @@
 # MAGIC     NULL,
 # MAGIC     NULL,
 # MAGIC     '{"product_id": "product_id", "product_name": "product_name", "category": "category", "price": "price"}',
+# MAGIC     NULL,
 # MAGIC     NULL,
 # MAGIC     '[{"column": "product_id", "rule": "not_null", "threshold": 0}]',
 # MAGIC     NULL,
