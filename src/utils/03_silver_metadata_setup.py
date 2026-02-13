@@ -24,7 +24,7 @@
 
 # MAGIC %sql
 # MAGIC -- Create Silver metadata table
-# MAGIC CREATE TABLE IF NOT EXISTS shopmetrics_ecommerce.metadata.silver_metadata (
+# MAGIC CREATE OR REPLACE TABLE shopmetrics_ecommerce.metadata.silver_metadata (
 # MAGIC   -- Identification
 # MAGIC   table_id STRING NOT NULL COMMENT 'Unique identifier: silver_orders, silver_dim_customers',
 # MAGIC   table_name STRING NOT NULL COMMENT 'Target Silver table name: orders_clean, dim_customers',
@@ -60,6 +60,9 @@
 # MAGIC   processing_order INT COMMENT 'Execution sequence (1, 2, 3...)',
 # MAGIC   dependencies ARRAY<STRING> COMMENT 'Table IDs that must complete first: ["silver_dim_customers"]',
 # MAGIC
+# MAGIC   -- Bronze Watermark Store
+# MAGIC   bronze_max_watermark TIMESTAMP COMMENT 'Latest ingestion timestamp for source table',
+# MAGIC
 # MAGIC   -- Audit
 # MAGIC   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP() COMMENT 'Metadata creation timestamp',
 # MAGIC   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP() COMMENT 'Last metadata update timestamp',
@@ -69,6 +72,14 @@
 # MAGIC )
 # MAGIC USING DELTA
 # MAGIC COMMENT 'Metadata configuration for batch Silver layer transformations (excludes streaming tables)';
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC ALTER TABLE shopmetrics_ecommerce.metadata.silver_metadata
+# MAGIC SET TBLPROPERTIES (
+# MAGIC   'delta.feature.allowColumnDefaults' = 'enabled'
+# MAGIC )
 
 # COMMAND ----------
 
@@ -92,7 +103,8 @@
 # MAGIC   business_rules,
 # MAGIC   is_active,
 # MAGIC   processing_order,
-# MAGIC   dependencies
+# MAGIC   dependencies,
+# MAGIC   bronze_max_watermark
 # MAGIC )
 # MAGIC VALUES
 # MAGIC   -- 1. Orders (Fact Table with Deduplication)
@@ -112,8 +124,9 @@
 # MAGIC     '[{"column": "order_id", "rule": "not_null", "threshold": 0.01}, {"column": "total_amount", "rule": "positive"}]',
 # MAGIC     '{"status": ["pending", "completed", "cancelled", "refunded"]}',
 # MAGIC     TRUE,
-# MAGIC     1,
-# MAGIC     array()
+# MAGIC     3,
+# MAGIC     array('silver_dim_customers', 'silver_dim_products'),
+# MAGIC     NULL
 # MAGIC   ),
 # MAGIC
 # MAGIC   -- 2. Customers (SCD Type 2 Dimension)
@@ -133,8 +146,9 @@
 # MAGIC     '[{"column": "customer_id", "rule": "not_null", "threshold": 0}]',
 # MAGIC     NULL,
 # MAGIC     TRUE,
-# MAGIC     2,
-# MAGIC     array()
+# MAGIC     1,
+# MAGIC     array(),
+# MAGIC     NULL
 # MAGIC   ),
 # MAGIC
 # MAGIC   -- 3. Products (SCD Type 1 Dimension - Simple Overwrite)
@@ -147,15 +161,16 @@
 # MAGIC     'ingested_at DESC',
 # MAGIC     NULL,
 # MAGIC     NULL,
-# MAGIC     NULL,
+# MAGIC     'products_sk',
 # MAGIC     '{"product_id": "product_id", "product_name": "product_name", "category": "category", "price": "price"}',
 # MAGIC     NULL,
 # MAGIC     NULL,
 # MAGIC     '[{"column": "product_id", "rule": "not_null", "threshold": 0}]',
 # MAGIC     NULL,
 # MAGIC     TRUE,
-# MAGIC     3,
-# MAGIC     array()
+# MAGIC     2,
+# MAGIC     array(),
+# MAGIC     NULL
 # MAGIC   );
 
 # COMMAND ----------
@@ -163,12 +178,7 @@
 # MAGIC %sql
 # MAGIC -- Verify the metadata table
 # MAGIC SELECT
-# MAGIC   table_id,
-# MAGIC   table_name,
-# MAGIC   source_table,
-# MAGIC   transform_type,
-# MAGIC   is_active,
-# MAGIC   processing_order
+# MAGIC   *
 # MAGIC FROM shopmetrics_ecommerce.metadata.silver_metadata
 # MAGIC ORDER BY processing_order;
 
