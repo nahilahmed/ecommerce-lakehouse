@@ -30,7 +30,7 @@ num_updates = int(dbutils.widgets.get("num_updates"))
 
 HISTORICAL_COUNT = 10_000
 VOLUME_PATH = "/Volumes/shopmetrics_ecommerce/bronze/raw_data"
-FIELDNAMES = ["customer_id", "name", "email", "region", "signup_date"]
+FIELDNAMES = ["customer_id", "name", "email", "region", "signup_date", "customer_modified_at"]
 
 print(f"Mode: {mode}")
 if mode == "incremental":
@@ -105,12 +105,14 @@ def generate_customer(seq: int) -> dict:
     """Generate a single new customer record."""
     first = random.choice(FIRST_NAMES)
     last = random.choice(LAST_NAMES)
+    signup = SIGNUP_START + timedelta(days=random.randint(0, SIGNUP_RANGE_DAYS))
     return {
         "customer_id": f"CUST-{seq:06d}",
         "name": f"{first} {last}",
         "email": generate_email(first, last),
         "region": random.choice(REGIONS),
-        "signup_date": (SIGNUP_START + timedelta(days=random.randint(0, SIGNUP_RANGE_DAYS))).isoformat(),
+        "signup_date": signup.isoformat(),
+        "customer_modified_at": signup.isoformat(),  # Initially equals signup_date
     }
 
 
@@ -159,6 +161,9 @@ def mutate_customer(customer: dict) -> dict:
         old_region = record["region"]
         new_region = random.choice([r for r in REGIONS if r != old_region])
         record["region"] = new_region
+
+    # Update the modification timestamp to today (when the change occurred)
+    record["customer_modified_at"] = date.today().isoformat()
 
     return record
 
