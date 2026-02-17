@@ -39,6 +39,7 @@
 # MAGIC
 # MAGIC   -- SCD Type 2 Config (for transform_type = 'scd_type2')
 # MAGIC   scd_business_key ARRAY<STRING> COMMENT 'Business key for SCD: ["customer_id"]',
+# MAGIC   scd_date_col STRING COMMENT 'Date column for SCD: "order_date"',
 # MAGIC   scd_compare_columns ARRAY<STRING> COMMENT 'Columns to track changes: ["email", "region"]',
 # MAGIC   surrogate_key_column STRING COMMENT 'Surrogate key column name: customer_sk',
 # MAGIC
@@ -94,6 +95,7 @@
 # MAGIC   dedup_columns,
 # MAGIC   dedup_order_by,
 # MAGIC   scd_business_key,
+# MAGIC   scd_date_col,
 # MAGIC   scd_compare_columns,
 # MAGIC   surrogate_key_column,
 # MAGIC   column_mappings,
@@ -118,6 +120,7 @@
 # MAGIC     NULL,
 # MAGIC     NULL,
 # MAGIC     NULL,
+# MAGIC     NULL,
 # MAGIC     '{"order_id": "order_id", "customer_id": "customer_id", "product_id": "product_id", "order_date": "order_date", "total_amount": "total_amount", "status": "status"}',
 # MAGIC     NULL,
 # MAGIC     '[{"dim_table": "shopmetrics_ecommerce.silver.dim_customers", "natural_key": "customer_id", "surrogate_key": "customer_sk", "effective_date_col": "order_date", "join_type": "left"}, {"dim_table": "shopmetrics_ecommerce.silver.dim_products", "natural_key": "product_id", "surrogate_key": "product_sk", "join_type": "left"}]',
@@ -138,6 +141,7 @@
 # MAGIC     NULL,
 # MAGIC     NULL,
 # MAGIC     array('customer_id'),
+# MAGIC     'customer_modified_at',
 # MAGIC     array('email', 'region'),
 # MAGIC     'customer_sk',
 # MAGIC     '{"customer_id": "customer_id", "email": "email", "region": "region", "signup_date": "signup_date"}',
@@ -159,6 +163,7 @@
 # MAGIC     'scd_type1',
 # MAGIC     array('product_id'),
 # MAGIC     'ingested_at DESC',
+# MAGIC     NULL,
 # MAGIC     NULL,
 # MAGIC     NULL,
 # MAGIC     'products_sk',

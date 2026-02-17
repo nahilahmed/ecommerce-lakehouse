@@ -212,7 +212,11 @@ print(f"Loaded {len(customer_ids):,} customer IDs and {len(product_ids):,} produ
 
 # COMMAND ----------
 
+import datetime
+
 rows = []
+def get_timestamp():
+    return datetime.datetime.now().isoformat(timespec='seconds').replace(':', '-')
 
 if mode == "historical":
     for i in range(1, HISTORICAL_COUNT + 1):
@@ -267,7 +271,8 @@ elif mode == "incremental":
     else:
         print("  No transitionable orders found (all in terminal state)")
 
-    filename = f"orders_incremental_{date.today().isoformat()}.csv"
+    timestamp = get_timestamp()
+    filename = f"orders_incremental_{timestamp}.csv"
 
 else:
     raise ValueError(f"Invalid mode: '{mode}'. Use 'historical' or 'incremental'.")

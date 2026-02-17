@@ -174,7 +174,12 @@ def mutate_customer(customer: dict) -> dict:
 
 # COMMAND ----------
 
+# DBTITLE 1,Generate Data
+import datetime
 rows = []
+
+def get_timestamp():
+    return datetime.datetime.now().isoformat(timespec='seconds').replace(':', '-')
 
 if mode == "historical":
     for i in range(1, HISTORICAL_COUNT + 1):
@@ -183,7 +188,7 @@ if mode == "historical":
     print(f"Generated {len(rows):,} customers (CUST-000001 to CUST-{HISTORICAL_COUNT:06d})")
 
 elif mode == "incremental":
-    existing = load_existing_customers(VOLUME_PATH)
+    existing = load_existing_customers(f"{VOLUME_PATH}/customers")
     max_seq = get_max_seq(existing)
     print(f"Found {len(existing):,} existing customers (max ID: CUST-{max_seq:06d})")
 
@@ -202,7 +207,8 @@ elif mode == "incremental":
         rows.append(mutate_customer(cust))
     print(f"  Attribute changes: {sample_size:,} existing customers modified")
 
-    filename = f"customers_incremental_{date.today().isoformat()}.csv"
+    timestamp = get_timestamp()
+    filename = f"customers_incremental_{timestamp}.csv"
 
 else:
     raise ValueError(f"Invalid mode: '{mode}'. Use 'historical' or 'incremental'.")
@@ -216,6 +222,7 @@ print(f"Total records in delta file: {len(rows):,}")
 
 # COMMAND ----------
 
+# DBTITLE 1,Write to Volume
 output_path = f"{VOLUME_PATH}/customers/{filename}"
 
 with open(output_path, "w", newline="") as f:
