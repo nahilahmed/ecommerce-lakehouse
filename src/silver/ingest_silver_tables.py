@@ -305,15 +305,23 @@ def process_fact(table_name, source_table, row_dict):
     print(f"\n========== Fact Table Processing Start ==========")
     print(f"Processing fact table: {table_name} | Source: {source_table}")
 
-    # 1. Check dependencies
+    # 1. Validate dependencies (safety check - should be prevented by processing_order)
     dependencies = row_dict['dependencies']
     mdb_df = spark.table('shopmetrics_ecommerce.metadata.silver_metadata')
-    for dep in dependencies:
-        dep_row = mdb_df.filter(f.col('table_id') == dep).first()
-        if not dep_row or dep_row['bronze_max_watermark'] is None:
-            print(f"Dependency {dep} not processed. Skipping fact table.")
-            return
-        print(f"Dependency {dep} processed up to: {dep_row['bronze_max_watermark']}")
+
+    if dependencies and len(dependencies) > 0:
+        print(f"🔍 Validating dependencies: {dependencies}")
+        for dep in dependencies:
+            dep_row = mdb_df.filter(f.col('table_id') == dep).first()
+            if not dep_row:
+                print(f"❌ Dependency {dep} not found in metadata. Skipping fact table.")
+                return
+            if dep_row['bronze_max_watermark'] is None:
+                print(f"❌ Dependency {dep} has not been processed yet (watermark is NULL). Skipping fact table.")
+                return
+            print(f"✅ Dependency {dep} ready (watermark: {dep_row['bronze_max_watermark']})")
+    else:
+        print("ℹ️  No dependencies defined for this fact table.")
 
     # 2. Read Watermark from Metadata Table
     watermark_row = mdb_df.filter(f.col('table_name') == table_name).select('bronze_max_watermark').first()
@@ -406,14 +414,28 @@ def process_fact(table_name, source_table, row_dict):
 
 # COMMAND ----------
 
-mdb_df = spark.table('shopmetrics_ecommerce.metadata.silver_metadata')
+# DBTITLE 1,Main Processing Loop - Ordered by processing_order for Dependency Resolution
+# Read metadata and order by processing_order to ensure dimensions execute before facts
+mdb_df = (spark.table('shopmetrics_ecommerce.metadata.silver_metadata')
+          .filter(f.col('is_active') == True)
+          .orderBy('processing_order'))
+
+print("\n" + "="*80)
+print("SILVER LAYER BATCH PROCESSING - DEPENDENCY-ORDERED EXECUTION")
+print("="*80)
 
 for row in mdb_df.collect():
+    table_id = row['table_id']
     table_name = row['table_name']
     source_table = row['source_table']
     transform_type = row['transform_type']
+    processing_order = row['processing_order']
 
-    print(f"\n--- Processing Table: {table_name} | Source: {source_table} ---")
+    print(f"\n{'='*80}")
+    print(f"[Order {processing_order}] Processing: {table_id} ({transform_type})")
+    print(f"Target: {table_name} | Source: {source_table}")
+    print(f"{'='*80}")
+
     if transform_type == 'scd_type1':
         process_scd_type1(table_name, source_table, row)
     elif transform_type == 'scd_type2':
@@ -421,4 +443,8 @@ for row in mdb_df.collect():
     elif transform_type == 'fact':
         process_fact(table_name, source_table, row)
     else:
-        print(f"Unsupported transform type: {transform_type}")
+        print(f"⚠️  Unsupported transform type: {transform_type}")
+
+print("\n" + "="*80)
+print("SILVER LAYER PROCESSING COMPLETE")
+print("="*80)
