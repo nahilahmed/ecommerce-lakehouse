@@ -1,8 +1,13 @@
 # Databricks notebook source
 import pyspark.sql.functions as f
 from pyspark.sql.window import Window
-
 from delta.tables import DeltaTable
+
+import sys
+sys.path.insert(0, "/Workspace/src")   # adjust to your Databricks repo root
+
+from transforms.scd1 import apply_scd1
+from transforms.scd2 import detect_scd2_changes, apply_scd2_window
 
 # COMMAND ----------
 
@@ -54,31 +59,13 @@ def process_scd_type1(table_name, source_table, row_dict):
         ])
         print(f"Applied column mapping: {mapping_dict}")
 
-    window_spec = Window.partitionBy(key_columns).orderBy(f.col('source_file_modified_at').desc())
-
-    change_df = (
-        incremental_df
-        .withColumn('dedupe_rank', f.row_number().over(window_spec))
-        .filter(f.col('dedupe_rank') == 1)
-        .drop('dedupe_rank')
-        .withColumn('silver_loaded_at', f.current_timestamp())
-        .withColumn('silver_updated_at', f.current_timestamp())
-    )
-    print(f"Filtered and deduplicated records from {source_table}")
+    change_df_with_sk = apply_scd1(incremental_df, key_columns, sk_column_name)
+    print(f"Deduplicated and added surrogate key for {source_table}")
 
     # Unity Catalog compatible empty check
-    if change_df.limit(1).count() == 0:
+    if change_df_with_sk.limit(1).count() == 0:
         print(f"No new records to process for {table_name}. Skipping table write/merge and watermark update.")
         return
-
-    change_df_with_sk = change_df.withColumn(
-        sk_column_name,
-        f.md5(f.concat_ws("||", *[f.col(c).cast("string") for c in key_columns]))
-    )
-
-    
-
-    print(f"Added surrogate key column: {sk_column_name}")
 
     full_table_name = f"shopmetrics_ecommerce.silver.{table_name}"
 
@@ -179,56 +166,23 @@ def process_scd_type2(table_name, source_table, row_dict):
     full_table_name = f"shopmetrics_ecommerce.silver.{table_name}"
 
     # ---- Change Detection: Only keep records where attributes actually changed ----
-    if spark.catalog.tableExists(full_table_name):
-        silver_current = (spark.table(full_table_name)
-                          .filter(f.col("is_current") == True))
-
-        change_condition = " OR ".join(
-            [f"(s.{c} != t.{c}) OR (s.{c} IS NULL AND t.{c} IS NOT NULL) OR (s.{c} IS NOT NULL AND t.{c} IS NULL)"
-             for c in scd_compare_columns]
-        )
-
-        # Records that exist in silver but have changed attributes
-        changed_records = (incremental_df.alias("s")
-            .join(silver_current.alias("t"), business_key, "inner")
-            .where(change_condition)
-            .select("s.*"))
-
-        # Completely new records not in silver at all
-        new_to_silver = (incremental_df.alias("s")
-            .join(silver_current.alias("t"), business_key, "left_anti")
-            .select("s.*"))
-
-        # Combine actual changes + new records
-        incremental_df = changed_records.unionByName(new_to_silver)
-
-        # Re-check if anything remains after change detection
-        if incremental_df.limit(1).count() == 0:
-            print(f"No actual changes detected for {table_name}. Skipping.")
-            return
-    
-    # ---- Window and chain records ----
-    window_spec = Window.partitionBy(business_key).orderBy(f.col(scd_date_col).asc())
-
-    change_df = (
-        incremental_df
-        .withColumn("rn", f.row_number().over(window_spec))
-        .withColumn('effective_from', f.col(scd_date_col))
-        .withColumn('effective_to', f.lead('effective_from').over(window_spec))
-        .withColumn("is_current", f.col("effective_to").isNull())
-        .withColumn("effective_to", 
-            f.coalesce(f.col("effective_to"), f.lit("9999-12-31 23:59:59").cast("timestamp")))
-        .withColumn('silver_loaded_at', f.current_timestamp())
-        .withColumn('silver_updated_at', f.current_timestamp())
+    silver_current = (
+        spark.table(full_table_name).filter(f.col("is_current") == True)
+        if spark.catalog.tableExists(full_table_name)
+        else spark.createDataFrame([], incremental_df.schema)
     )
 
-    # Generate surrogate key for all records
-    change_df = change_df.withColumn(
-        sk_column_name, 
-        f.md5(f.concat_ws("|", *[f.col(c).cast("string") for c in sk_cols]))
+    incremental_df = detect_scd2_changes(
+        incremental_df, silver_current, business_key, scd_compare_columns
     )
 
-    print(f"Filtered and windowed records from {source_table}")
+    if incremental_df.limit(1).count() == 0:
+        print(f"No actual changes detected for {table_name}. Skipping.")
+        return
+
+    # ---- Window, chain records, generate surrogate key ----
+    change_df = apply_scd2_window(incremental_df, business_key, scd_date_col, sk_column_name)
+    print(f"Applied SCD2 window and surrogate key for {source_table}")
 
     if not spark.catalog.tableExists(full_table_name):
         # ---- First Run: Create table ----
