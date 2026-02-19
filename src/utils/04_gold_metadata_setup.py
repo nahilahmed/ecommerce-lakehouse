@@ -26,7 +26,6 @@
 # MAGIC
 # MAGIC   -- Aggregation Config
 # MAGIC   aggregation_type  STRING NOT NULL COMMENT 'incremental_merge | full_recompute',
-# MAGIC   grain_columns     ARRAY<STRING> COMMENT 'MERGE keys for incremental_merge tables e.g. ["order_date","category"]',
 # MAGIC
 # MAGIC   -- Watermark (tracks last silver_updated_at successfully consumed by this gold table)
 # MAGIC   silver_max_watermark TIMESTAMP COMMENT 'Last silver_updated_at processed — updated after each successful run',
@@ -56,7 +55,7 @@
 # MAGIC %sql
 # MAGIC -- Insert metadata for all gold tables
 # MAGIC INSERT INTO shopmetrics_ecommerce.metadata.gold_metadata
-# MAGIC (table_id, table_name, notebook_name, source_tables, aggregation_type, grain_columns, is_active, processing_order, silver_max_watermark)
+# MAGIC (table_id, table_name, notebook_name, source_tables, aggregation_type, is_active, processing_order, silver_max_watermark)
 # MAGIC VALUES
 # MAGIC   -- 1. Daily Sales Summary (FR-006)
 # MAGIC   --    Grain: (order_date, category) — past dates are immutable, only recent dates change
@@ -66,39 +65,40 @@
 # MAGIC     'daily_sales_summary',
 # MAGIC     array('shopmetrics_ecommerce.silver.orders_clean', 'shopmetrics_ecommerce.silver.dim_products'),
 # MAGIC     'incremental_merge',
-# MAGIC     array('order_date', 'category'),
 # MAGIC     TRUE,
 # MAGIC     1,
 # MAGIC     NULL
-# MAGIC   ),
-# MAGIC
-# MAGIC   -- 2. Customer LTV (FR-007)
-# MAGIC   --    Grain: customer_id — cumulative, only recompute affected customers
-# MAGIC   (
-# MAGIC     'gold_customer_ltv',
-# MAGIC     'customer_ltv',
-# MAGIC     'customer_ltv',
-# MAGIC     array('shopmetrics_ecommerce.silver.orders_clean'),
-# MAGIC     'incremental_merge',
-# MAGIC     array('customer_id'),
-# MAGIC     TRUE,
-# MAGIC     2,
-# MAGIC     NULL
-# MAGIC   ),
-# MAGIC
-# MAGIC   -- 3. Product Performance (FR-008)
-# MAGIC   --    Full recompute: category_rank is cross-product relative metric
-# MAGIC   (
-# MAGIC     'gold_product_performance',
-# MAGIC     'product_performance',
-# MAGIC     'product_performance',
-# MAGIC     array('shopmetrics_ecommerce.silver.orders_clean', 'shopmetrics_ecommerce.silver.dim_products'),
-# MAGIC     'full_recompute',
-# MAGIC     array('product_id'),
-# MAGIC     TRUE,
-# MAGIC     3,
-# MAGIC     NULL
 # MAGIC   )
+
+# COMMAND ----------
+
+# - 2. Customer LTV (FR-007)
+#   --    Grain: customer_id — cumulative, only recompute affected customers
+#   (
+#     'gold_customer_ltv',
+#     'customer_ltv',
+#     'customer_ltv',
+#     array('shopmetrics_ecommerce.silver.orders_clean'),
+#     'incremental_merge',
+#     array('customer_id'),
+#     TRUE,
+#     2,
+#     NULL
+#   ),
+
+#   -- 3. Product Performance (FR-008)
+#   --    Full recompute: category_rank is cross-product relative metric
+#   (
+#     'gold_product_performance',
+#     'product_performance',
+#     'product_performance',
+#     array('shopmetrics_ecommerce.silver.orders_clean', 'shopmetrics_ecommerce.silver.dim_products'),
+#     'full_recompute',
+#     array('product_id'),
+#     TRUE,
+#     3,
+#     NULL
+#   )
 
 # COMMAND ----------
 

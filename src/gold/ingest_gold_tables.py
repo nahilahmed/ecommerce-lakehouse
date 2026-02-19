@@ -40,6 +40,8 @@ for row in gold_meta.collect():
     agg_type      = row['aggregation_type']
     order         = row['processing_order']
 
+    gold_table_name = f"shopmetrics_ecommerce.gold.{table_name}"
+
     silver_max_watermark = (
         str(row['silver_max_watermark'])
         if row['silver_max_watermark'] is not None
@@ -54,7 +56,7 @@ for row in gold_meta.collect():
 
     notebook_path = f"table_notebooks/{notebook_name}"
     params = {
-        "table_id":             table_id,
+        "table_name": gold_table_name,
         "silver_max_watermark": silver_max_watermark,
     }
 
