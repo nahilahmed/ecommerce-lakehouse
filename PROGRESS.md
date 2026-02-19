@@ -3,6 +3,18 @@
 
 ---
 
+## Recent Updates
+
+### 2026-02-19 — Silver Layer Review & Optimization
+- ✅ Reviewed unified silver ingestion script (src/silver/ingest_silver_tables.py)
+- ✅ Fixed critical bug: Main execution loop now respects `processing_order` from metadata
+- ✅ Fixed variable scope bug in `process_fact()` function
+- ✅ Enhanced dependency validation with detailed status feedback
+- ✅ Verified SCD Type 1, SCD Type 2, and Fact processing implementations
+- 📋 **Next:** Implement Gold layer aggregations (daily_sales_summary, customer_ltv, product_performance)
+
+---
+
 ## Week 1 — Foundation & Batch Data Setup
 
 ### Day 1 — Databricks Workspace Setup
@@ -27,19 +39,23 @@
 - [x] `data-generator/generate_products.py` — 1K products across 8 categories, historical + incremental with price changes
 - [x] Run generate_products.py (historical) in Databricks
 - [x] Upload/verify all CSVs in ecommerce.bronze.raw_data volume
-- [ ] Create src/bronze/ingest_orders.py — add ingested_at, source_file audit columns
-- [ ] Write to ecommerce.bronze.orders_raw — verify schema matches BRD §7.2
-- [ ] Test with SELECT, COUNT, DESCRIBE
+- [x] Create src/bronze/ingest_orders.py — add ingested_at, source_file audit columns
+- [x] Write to ecommerce.bronze.orders_raw — verify schema matches BRD §7.2
+- [x] Test with SELECT, COUNT, DESCRIBE
 
 ### Day 5 — Bronze Complete + First Silver
-- [ ] Ingest ecommerce.bronze.customers_raw and products_raw
-- [ ] Create src/silver/clean_orders.py — dedup, null handling, status validation
-- [ ] Write to ecommerce.silver.orders_clean
+- [x] Ingest ecommerce.bronze.customers_raw and products_raw
+- [x] Create metadata-driven framework (src/utils/03_silver_metadata_setup.py)
+- [x] Create unified silver processing script (src/silver/ingest_silver_tables.py)
+- [x] Implement orders_clean processing (fact table with dimension joins)
 - [ ] Draft docs/data-model.md
 
 ### Day 6 — SCD Type 2
-- [ ] Create src/silver/dim_customers.py — SCD Type 2 with Delta MERGE
-- [ ] Create src/silver/dim_products.py
+- [x] Create SCD Type 2 implementation in src/silver/ingest_silver_tables.py (dim_customers)
+- [x] Create SCD Type 1 implementation in src/silver/ingest_silver_tables.py (dim_products)
+- [x] Implement dependency-ordered execution (processing_order column)
+- [x] Add dynamic dimension joins for fact tables (SCD2 point-in-time support)
+- [x] Review and fix execution ordering bugs
 - [ ] Write tests/unit/test_scd2_customers.py
 - [ ] Test AC-003: update customer email, verify old record end_date populated
 
@@ -142,8 +158,8 @@
 
 | Milestone | Target Day | Status |
 |-----------|-----------|--------|
-| Bronze layer complete | 5 | Not started |
-| Batch medallion done | 9 | Not started |
+| Bronze layer complete | 5 | ✅ Complete |
+| Batch medallion done | 9 | 🟡 In Progress (Silver complete, Gold pending) |
 | Kafka streaming live | 13 | Not started |
 | CI/CD operational | 18 | Not started |
 | All 4 dashboard pages live | 26 | Not started |
