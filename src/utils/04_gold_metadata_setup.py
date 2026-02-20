@@ -53,6 +53,12 @@
 # COMMAND ----------
 
 # MAGIC %sql
+# MAGIC DELETE FROM Shopmetrics_ecommerce.metadata.gold_metadata
+# MAGIC where 1 = 1
+
+# COMMAND ----------
+
+# MAGIC %sql
 # MAGIC -- Insert metadata for all gold tables
 # MAGIC INSERT INTO shopmetrics_ecommerce.metadata.gold_metadata
 # MAGIC (table_id, table_name, notebook_name, source_tables, aggregation_type, is_active, processing_order, silver_max_watermark)
@@ -68,23 +74,23 @@
 # MAGIC     TRUE,
 # MAGIC     1,
 # MAGIC     NULL
+# MAGIC   ),
+# MAGIC   -- 2. Customer LTV (FR-007)
+# MAGIC   --    Grain: customer_id — cumulative, only recompute affected customers
+# MAGIC   (
+# MAGIC     'gold_customer_ltv',
+# MAGIC     'customer_ltv',
+# MAGIC     'customer_ltv',
+# MAGIC     array('shopmetrics_ecommerce.silver.orders_clean', 'shopmetrics_ecommerce.silver.dim_customers'),
+# MAGIC     'incremental_merge',
+# MAGIC     TRUE,
+# MAGIC     2,
+# MAGIC     NULL
 # MAGIC   )
 
 # COMMAND ----------
 
-# - 2. Customer LTV (FR-007)
-#   --    Grain: customer_id — cumulative, only recompute affected customers
-#   (
-#     'gold_customer_ltv',
-#     'customer_ltv',
-#     'customer_ltv',
-#     array('shopmetrics_ecommerce.silver.orders_clean'),
-#     'incremental_merge',
-#     array('customer_id'),
-#     TRUE,
-#     2,
-#     NULL
-#   ),
+
 
 #   -- 3. Product Performance (FR-008)
 #   --    Full recompute: category_rank is cross-product relative metric

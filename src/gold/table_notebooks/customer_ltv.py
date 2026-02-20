@@ -14,7 +14,6 @@ print(f"Current silver_max_timestamp: {silver_max_timestamp}")
 
 # COMMAND ----------
 
-# DBTITLE 1,Incremental ETL: Read full fact for affected dates
 orders_fact_df = (spark.table('shopmetrics_ecommerce.silver.orders_clean')
                   .filter(f'silver_updated_at > "{silver_max_timestamp}"')
                 )
@@ -27,35 +26,49 @@ if orders_fact_df.limit(1).count() == 0:
 new_watermark = orders_fact_df.agg(F.max("silver_updated_at")).first()[0]
 print(f"New watermark will be: {new_watermark}")
 
-new_or_changed_dates = (
+new_or_changed_customers = (
   orders_fact_df
-    .select('order_date')
+    .select('customer_id')
     .distinct()
 )
 
+
 # Read full fact table for affected dates
 full_orders_fact_df = spark.table('shopmetrics_ecommerce.silver.orders_clean')
-affected_orders_df = (
+affected_orders_cust_df = (
   full_orders_fact_df.alias('o')
-    .join(new_or_changed_dates.alias('c'), on='order_date')
+    .join(new_or_changed_customers.alias('c'), on='customer_id')
     .select('o.*')
 )
 
 # COMMAND ----------
 
-dim_products_df = spark.table('shopmetrics_ecommerce.silver.dim_products')
+dim_customers_df = spark.table('shopmetrics_ecommerce.silver.dim_customers')
 
 join_df = (
-  affected_orders_df.alias('o')
-    .join(dim_products_df.alias('p'), on='products_sk')
+  affected_orders_cust_df.alias('o')
+    .join(dim_customers_df.alias('c'), on='customer_sk')
     .filter(F.lower('o.status') == 'completed')
-    .select('o.order_date', dim_products_df['category'].alias('product_category'), 'o.total_amount', 'o.order_id')
-    .groupBy('order_date', 'product_category')
-    .agg(F.countDistinct('order_id').alias('total_orders'), F.sum('total_amount').alias('total_revenue'), F.avg('total_amount').alias('avg_revenue_per_order'))
-    .withColumn('total_revenue', F.round('total_revenue', 2))
-    .withColumn('avg_revenue_per_order', F.round('avg_revenue_per_order', 2))
+    .groupBy('o.customer_id', 'c.name', 'c.email', 'c.region')
+    .agg(
+      F.countDistinct('o.order_id').alias('total_orders'),
+      F.sum('o.total_amount').alias('total_revenue'),
+      F.min('o.order_date').alias('first_order_date'),
+      F.max('o.order_date').alias('last_order_date')
+    )
+    .withColumn('customer_ltv', F.col('total_revenue'))
+    .withColumn(
+      'ltv_segment',
+      F.when(F.col('customer_ltv') >= 1000, 'High')
+       .when(F.col('customer_ltv') >= 500, 'Medium')
+       .otherwise('Low')
+    )
     .withColumn('updated_at', F.current_timestamp())
+    .drop('customer_ltv')
 )
+
+display(join_df)
+
 
 if spark.catalog.tableExists(full_table_name):
   join_df.createOrReplaceTempView('incremental_source')
@@ -63,7 +76,7 @@ if spark.catalog.tableExists(full_table_name):
   merge_query = f"""
     MERGE INTO {full_table_name} t
     USING incremental_source s
-    ON t.order_date = s.order_date AND t.product_category = s.product_category
+    ON t.customer_id = s.customer_id
     WHEN MATCHED THEN
       UPDATE SET *
     WHEN NOT MATCHED THEN
