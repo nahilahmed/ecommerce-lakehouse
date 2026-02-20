@@ -86,30 +86,24 @@
 # MAGIC     TRUE,
 # MAGIC     2,
 # MAGIC     NULL
+# MAGIC   ),
+# MAGIC   -- 3. Product Performance (FR-008)
+# MAGIC   --    Grain: product_id — recomputes full affected category so category_rank stays correct
+# MAGIC   (
+# MAGIC     'gold_product_performance',
+# MAGIC     'product_performance',
+# MAGIC     'product_performance',
+# MAGIC     array('shopmetrics_ecommerce.silver.orders_clean', 'shopmetrics_ecommerce.silver.dim_products'),
+# MAGIC     'incremental_merge',
+# MAGIC     TRUE,
+# MAGIC     3,
+# MAGIC     NULL
 # MAGIC   )
-
-# COMMAND ----------
-
-
-
-#   -- 3. Product Performance (FR-008)
-#   --    Full recompute: category_rank is cross-product relative metric
-#   (
-#     'gold_product_performance',
-#     'product_performance',
-#     'product_performance',
-#     array('shopmetrics_ecommerce.silver.orders_clean', 'shopmetrics_ecommerce.silver.dim_products'),
-#     'full_recompute',
-#     array('product_id'),
-#     TRUE,
-#     3,
-#     NULL
-#   )
 
 # COMMAND ----------
 
 # MAGIC %sql
 # MAGIC -- Verify
-# MAGIC SELECT table_id, table_name, aggregation_type, grain_columns, processing_order, silver_max_watermark
+# MAGIC SELECT table_id, table_name, aggregation_type, processing_order, silver_max_watermark
 # MAGIC FROM shopmetrics_ecommerce.metadata.gold_metadata
 # MAGIC ORDER BY processing_order
