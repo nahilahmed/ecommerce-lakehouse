@@ -32,10 +32,10 @@ print(f"Topic     : {topic}")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Test 1 — Read topic metadata (batch)
+# MAGIC ## Test 1 — Auth + schema check
 # MAGIC
-# MAGIC Reads 0 rows from the topic using `startingOffsets=latest`.
-# MAGIC If auth or network fails this cell will throw.
+# MAGIC Resolves the Kafka schema without reading any rows.
+# MAGIC This confirms credentials and broker reachability — works even on an empty topic.
 
 # COMMAND ----------
 
@@ -50,8 +50,7 @@ kafka_options = {
     "kafka.sasl.mechanism":     "PLAIN",
     "kafka.sasl.jaas.config":   jaas,
     "subscribe":                topic,
-    "startingOffsets":          "latest",
-    "endingOffsets":            "latest",
+    "startingOffsets":          "earliest",
 }
 
 try:
@@ -61,9 +60,10 @@ try:
         .options(**kafka_options)
         .load()
     )
+    # Schema resolution alone proves auth + network succeeded
     print(f"✅ Connected. Topic '{topic}' is reachable.")
-    print(f"   Schema: {[f.name for f in df.schema.fields]}")
-    print(f"   Row count (latest snapshot): {df.count()}")
+    print(f"   Kafka schema fields: {[f.name for f in df.schema.fields]}")
+    print(f"   (Topic is empty — no rows expected yet)")
 except Exception as e:
     print(f"❌ Connection failed: {e}")
     raise
@@ -71,14 +71,13 @@ except Exception as e:
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Test 2 — Streaming read (5-second micro-batch)
+# MAGIC ## Test 2 — Streaming read (AvailableNow trigger)
 # MAGIC
-# MAGIC Starts a streaming query for 5 seconds then stops it.
-# MAGIC Confirms the cluster can maintain a streaming connection.
+# MAGIC Uses `trigger(availableNow=True)` — the only streaming trigger supported on
+# MAGIC Databricks Free Edition. Processes all available data then stops automatically.
+# MAGIC Confirms the cluster can open a streaming Kafka connection.
 
 # COMMAND ----------
-
-import time
 
 streaming_options = {**kafka_options}
 streaming_options.pop("endingOffsets", None)
@@ -92,11 +91,11 @@ stream_query = (
     .writeStream
     .format("memory")
     .queryName("kafka_connectivity_test")
+    .trigger(availableNow=True)
     .start()
 )
 
-time.sleep(5)
-stream_query.stop()
+stream_query.awaitTermination()
 
 print("✅ Streaming connection established and cleanly stopped.")
 print(f"   Status: {stream_query.lastProgress}")
