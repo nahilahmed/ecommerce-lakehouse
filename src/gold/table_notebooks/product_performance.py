@@ -63,7 +63,7 @@ agg_df = (
     affected_orders_df.alias('o')
     .join(dim_products_df.alias('p'), on='products_sk')
     .filter(F.lower('o.status') == 'completed')
-    .groupBy('p.product_id', 'p.product_name', 'p.category')
+    .groupBy('p.products_sk', 'p.product_id', 'p.product_name', 'p.category')
     .agg(
         F.countDistinct('o.order_id').alias('units_sold'),
         F.sum('o.total_amount').alias('total_revenue'),
@@ -87,7 +87,7 @@ if spark.catalog.tableExists(full_table_name):
     merge_query = f"""
         MERGE INTO {full_table_name} t
         USING incremental_source s
-        ON t.product_id = s.product_id
+        ON t.products_sk = s.products_sk
         WHEN MATCHED THEN
             UPDATE SET *
         WHEN NOT MATCHED THEN
