@@ -5,13 +5,22 @@
 
 ## Recent Updates
 
+### 2026-02-20 — Gold Layer Complete + Daily Sales Dashboard
+- ✅ Created Gold master orchestration notebook (`src/gold/ingest_gold_tables.py`) with watermark-based metadata-driven execution
+- ✅ Created `src/gold/table_notebooks/daily_sales_summary.py` (FR-006) — date/category revenue aggregations
+- ✅ Created `src/gold/table_notebooks/customer_ltv.py` (FR-007) — LTV segmentation (High/Medium/Low)
+- ✅ Created `src/gold/table_notebooks/product_performance.py` (FR-008) — units sold, revenue, category rank
+- ✅ Fixed bugs in customer_ltv and product_performance notebooks
+- ✅ Created Databricks Lakeview dashboard: `dashboards/Shopcommerce - Daily Sales Visualization.lvdash.json`
+- ✅ Updated `src/utils/04_gold_metadata_setup.py` with all three Gold table registrations + dashboard config
+- 📋 **Next:** Confluent Kafka setup (Day 10) — clickstream streaming pipeline
+
 ### 2026-02-19 — Silver Layer Review & Optimization
-- ✅ Reviewed unified silver ingestion script (src/silver/ingest_silver_tables.py)
+- ✅ Reviewed unified silver ingestion script (`src/silver/ingest_silver_tables.py`)
 - ✅ Fixed critical bug: Main execution loop now respects `processing_order` from metadata
 - ✅ Fixed variable scope bug in `process_fact()` function
 - ✅ Enhanced dependency validation with detailed status feedback
 - ✅ Verified SCD Type 1, SCD Type 2, and Fact processing implementations
-- 📋 **Next:** Implement Gold layer aggregations (daily_sales_summary, customer_ltv, product_performance)
 
 ---
 
@@ -64,15 +73,15 @@
 ## Week 2 — Gold Layer + Confluent Kafka Setup
 
 ### Day 7 — Daily Sales Summary
-- [ ] Create src/gold/daily_sales_summary.py (FR-006)
+- [x] Create `src/gold/table_notebooks/daily_sales_summary.py` (FR-006)
 - [ ] Verify AC-005: revenue within 0.01% of manual calc
 
 ### Day 8 — Customer LTV
-- [ ] Create src/gold/customer_ltv.py (FR-007)
+- [x] Create `src/gold/table_notebooks/customer_ltv.py` (FR-007)
 - [ ] Verify AC-006: 3 test profiles segmented correctly
 
 ### Day 9 — Product Performance
-- [ ] Create src/gold/product_performance.py (FR-008)
+- [x] Create `src/gold/table_notebooks/product_performance.py` (FR-008)
 - [ ] Full batch pipeline end-to-end run
 - [ ] Verify NFR-001: pipeline completes within 60 minutes
 
@@ -159,9 +168,9 @@
 | Milestone | Target Day | Status |
 |-----------|-----------|--------|
 | Bronze layer complete | 5 | ✅ Complete |
-| Batch medallion done | 9 | 🟡 In Progress (Silver complete, Gold pending) |
+| Batch medallion done | 9 | ✅ Complete (Gold notebooks built; AC verifications pending) |
 | Kafka streaming live | 13 | Not started |
 | CI/CD operational | 18 | Not started |
-| All 4 dashboard pages live | 26 | Not started |
+| All 4 dashboard pages live | 26 | 🟡 In Progress (Lakeview daily sales dashboard live) |
 | All ACs signed off | 27 | Not started |
 | Project publicly launched | 30 | Not started |
