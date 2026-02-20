@@ -107,3 +107,16 @@
 # MAGIC SELECT table_id, table_name, aggregation_type, processing_order, silver_max_watermark
 # MAGIC FROM shopmetrics_ecommerce.metadata.gold_metadata
 # MAGIC ORDER BY processing_order
+
+# COMMAND ----------
+
+tables = spark.sql("SHOW TABLES IN shopmetrics_ecommerce.gold").collect()
+for row in tables:
+    table_name = row['tableName']
+    spark.sql(f"DROP TABLE shopmetrics_ecommerce.gold.{table_name}")
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC UPDATE shopmetrics_ecommerce.metadata.gold_metadata
+# MAGIC SET silver_max_watermark = NULL
