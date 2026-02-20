@@ -28,16 +28,16 @@ print(f"New watermark will be: {new_watermark}")
 
 new_or_changed_customers = (
   orders_fact_df
-    .select('customer_id')
+    .select('customer_sk')
     .distinct()
 )
 
 
-# Read full fact table for affected dates
+# Read full fact table for affected customer_sk values
 full_orders_fact_df = spark.table('shopmetrics_ecommerce.silver.orders_clean')
 affected_orders_cust_df = (
   full_orders_fact_df.alias('o')
-    .join(new_or_changed_customers.alias('c'), on='customer_id')
+    .join(new_or_changed_customers.alias('c'), on='customer_sk')
     .select('o.*')
 )
 
@@ -49,7 +49,7 @@ join_df = (
   affected_orders_cust_df.alias('o')
     .join(dim_customers_df.alias('c'), on='customer_sk')
     .filter(F.lower('o.status') == 'completed')
-    .groupBy('o.customer_id', 'c.name', 'c.email', 'c.region')
+    .groupBy('o.customer_sk', 'o.customer_id', 'c.name', 'c.email', 'c.region')
     .agg(
       F.countDistinct('o.order_id').alias('total_orders'),
       F.sum('o.total_amount').alias('total_revenue'),
@@ -76,7 +76,7 @@ if spark.catalog.tableExists(full_table_name):
   merge_query = f"""
     MERGE INTO {full_table_name} t
     USING incremental_source s
-    ON t.customer_id = s.customer_id
+    ON t.customer_sk = s.customer_sk
     WHEN MATCHED THEN
       UPDATE SET *
     WHEN NOT MATCHED THEN
