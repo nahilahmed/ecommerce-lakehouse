@@ -83,7 +83,7 @@ streaming_options = {**kafka_options}
 streaming_options.pop("endingOffsets", None)
 streaming_options["startingOffsets"] = "latest"
 
-CHECKPOINT_PATH = "/Volumes/ecommerce/bronze/raw_data/checkpoints/kafka_connectivity_test"
+CHECKPOINT_PATH = "/Volumes/shopmetrics_ecommerce/bronze/raw_data/checkpoints/kafka_connectivity_test"
 
 stream_query = (
     spark.readStream
