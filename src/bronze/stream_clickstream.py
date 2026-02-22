@@ -122,16 +122,15 @@ raw_stream = (
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Parse JSON and add audit columns
+# MAGIC ## Parse JSON
 # MAGIC
 # MAGIC Step 1 — cast value bytes → string
 # MAGIC Step 2 — parse JSON string → struct using EVENT_SCHEMA
-# MAGIC Step 3 — flatten struct columns to top level
-# MAGIC Step 4 — cast event_ts string → timestamp
-# MAGIC Step 5 — apply 10-min watermark on event_ts (BRD §5, NFR-003)
-# MAGIC           Watermark tells Spark: discard events arriving >10 min late.
-# MAGIC           Required for correct sessionization in Silver (Day 13).
-# MAGIC Step 6 — add kafka_offset and ingested_at audit columns
+# MAGIC Step 3 — tag each row as valid or malformed
+# MAGIC
+# MAGIC Note on watermark: Bronze just appends — no windowed aggregation happens here.
+# MAGIC The 10-min watermark belongs in Silver's sessionization query (Day 13),
+# MAGIC applied when Silver reads from this Delta table.
 
 # COMMAND ----------
 
@@ -139,106 +138,86 @@ parsed = (
     raw_stream
     # Step 1 — bytes to string
     .withColumn("value_str", F.col("value").cast("string"))
-    # Step 2 — parse JSON; fields that don't match schema land in _corrupt_record
+    # Step 2 — parse JSON; unrecognised fields are silently dropped,
+    # required fields that are missing produce null
     .withColumn("data", F.from_json(F.col("value_str"), EVENT_SCHEMA))
-    # Step 3 — split into valid vs malformed rows
-    # A row is malformed if from_json couldn't populate the required fields
+    # Step 3 — validity flag: both required fields must be non-null
     .withColumn(
         "_is_valid",
         F.col("data.event_id").isNotNull() & F.col("data.customer_id").isNotNull()
     )
 )
 
-# Split here — valid rows go to clickstream_raw, bad rows go to dead letter
-valid_stream = (
-    parsed
-    .filter(F.col("_is_valid"))
-    # Step 3 — flatten struct
-    .select(
-        F.col("data.event_id").alias("event_id"),
-        F.col("data.customer_id").alias("customer_id"),
-        F.col("data.product_id").alias("product_id"),
-        F.col("data.event_type").alias("event_type"),
-        F.col("data.session_id").alias("session_id"),
-        F.col("data.page").alias("page"),
-        # Step 4 — parse ISO 8601 string to timestamp
-        F.to_timestamp(F.col("data.event_ts")).alias("event_ts"),
-        # Step 6 — Kafka metadata audit columns
-        F.col("offset").alias("kafka_offset"),
-        F.col("partition").alias("kafka_partition"),
-        F.current_timestamp().alias("ingested_at"),
-    )
-    # Step 5 — 10-min watermark for late event handling (BRD requirement)
-    # Silver sessionization depends on this being set correctly here
-    .withWatermark("event_ts", "10 minutes")
-)
-
-dead_letter_stream = (
-    parsed
-    .filter(~F.col("_is_valid"))
-    .select(
-        F.col("value_str").alias("raw_payload"),
-        F.col("offset").alias("kafka_offset"),
-        F.col("partition").alias("kafka_partition"),
-        F.col("timestamp").alias("kafka_timestamp"),
-        F.current_timestamp().alias("ingested_at"),
-        F.lit("parse_failure").alias("failure_reason"),
-    )
-)
-
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Write valid events to Bronze Delta table
+# MAGIC ## Route and write — single foreachBatch
 # MAGIC
-# MAGIC `foreachBatch` gives us a plain batch DataFrame on each micro-batch,
-# MAGIC which lets us use `.write.mode("append").saveAsTable()` — the same
-# MAGIC pattern as the batch bronze ingestion script.
+# MAGIC **Why one query instead of two:**
+# MAGIC Two separate writeStream queries on the same readStream source would each
+# MAGIC open an independent Kafka consumer, reading every message twice.
+# MAGIC Instead, a single foreachBatch reads Kafka once per micro-batch and routes
+# MAGIC valid rows to clickstream_raw and malformed rows to the dead-letter table
+# MAGIC inside the same function — one Kafka read, two Delta writes.
 # MAGIC
-# MAGIC `trigger(availableNow=True)` — Free Edition constraint.
-# MAGIC Reads all unprocessed Kafka offsets, writes them, then stops.
-# MAGIC The checkpoint ensures the next run picks up exactly where this one left off.
+# MAGIC Inside foreachBatch the DataFrame is a plain batch (not streaming),
+# MAGIC so standard `.write.mode("append").saveAsTable()` works directly.
 
 # COMMAND ----------
 
-def write_batch(batch_df, batch_id):
-    """Append micro-batch to the Bronze Delta table."""
-    row_count = batch_df.count()
-    if row_count == 0:
-        print(f"  Batch {batch_id}: no new events.")
-        return
-    batch_df.write.mode("append").saveAsTable(TARGET_TABLE)
-    print(f"  Batch {batch_id}: wrote {row_count} rows to {TARGET_TABLE}")
+def route_batch(batch_df, batch_id):
+    """
+    Route one micro-batch to valid or dead-letter table.
+    Called once per micro-batch by Spark — batch_df is a regular batch DataFrame.
+    """
+    # Split the batch on the validity flag computed in the parsed stream
+    valid_df = (
+        batch_df
+        .filter(F.col("_is_valid"))
+        .select(
+            F.col("data.event_id").alias("event_id"),
+            F.col("data.customer_id").alias("customer_id"),
+            F.col("data.product_id").alias("product_id"),
+            F.col("data.event_type").alias("event_type"),
+            F.col("data.session_id").alias("session_id"),
+            F.col("data.page").alias("page"),
+            F.to_timestamp(F.col("data.event_ts")).alias("event_ts"),
+            F.col("offset").alias("kafka_offset"),
+            F.col("partition").alias("kafka_partition"),
+            F.current_timestamp().alias("ingested_at"),
+        )
+    )
+
+    dead_df = (
+        batch_df
+        .filter(~F.col("_is_valid"))
+        .select(
+            F.col("value_str").alias("raw_payload"),
+            F.col("offset").alias("kafka_offset"),
+            F.col("partition").alias("kafka_partition"),
+            F.col("timestamp").alias("kafka_timestamp"),
+            F.current_timestamp().alias("ingested_at"),
+            F.lit("parse_failure").alias("failure_reason"),
+        )
+    )
+
+    valid_count = valid_df.count()
+    dead_count  = dead_df.count()
+
+    if valid_count > 0:
+        valid_df.write.mode("append").saveAsTable(TARGET_TABLE)
+
+    if dead_count > 0:
+        dead_df.write.mode("append").saveAsTable(DEAD_LETTER_TABLE)
+
+    print(f"  Batch {batch_id}: valid={valid_count}, dead_letter={dead_count}")
 
 
-main_query = (
-    valid_stream
+query = (
+    parsed
     .writeStream
-    .foreachBatch(write_batch)
+    .foreachBatch(route_batch)
     .option("checkpointLocation", CHECKPOINT_PATH)
-    .trigger(availableNow=True)
-    .start()
-)
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## Write malformed events to dead-letter table
-# MAGIC
-# MAGIC Instead of silently dropping bad messages or crashing the stream,
-# MAGIC we route them to a separate table for investigation.
-# MAGIC This is a standard production pattern.
-
-# COMMAND ----------
-
-dead_letter_query = (
-    dead_letter_stream
-    .writeStream
-    .foreachBatch(
-        lambda df, id: df.write.mode("append").saveAsTable(DEAD_LETTER_TABLE)
-        if df.count() > 0 else None
-    )
-    .option("checkpointLocation", CHECKPOINT_PATH + "_dead_letter")
     .trigger(availableNow=True)
     .start()
 )
@@ -250,15 +229,11 @@ dead_letter_query = (
 
 # COMMAND ----------
 
-main_query.awaitTermination()
-dead_letter_query.awaitTermination()
+query.awaitTermination()
 
-main_progress      = main_query.lastProgress
-dead_letter_progress = dead_letter_query.lastProgress
-
+progress = query.lastProgress
 print("\n=== Run complete ===")
-print(f"Valid events   — numInputRows: {main_progress.get('numInputRows') if main_progress else 'n/a'}")
-print(f"Dead-letter    — numInputRows: {dead_letter_progress.get('numInputRows') if dead_letter_progress else 'n/a'}")
+print(f"numInputRows : {progress.get('numInputRows') if progress else 'n/a'}")
 print(f"\nVerify with:")
 print(f"  SELECT COUNT(*) FROM {TARGET_TABLE}")
 print(f"  SELECT COUNT(*) FROM {DEAD_LETTER_TABLE}")
