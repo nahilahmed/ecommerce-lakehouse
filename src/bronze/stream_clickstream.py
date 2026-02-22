@@ -50,11 +50,11 @@ assert api_key,    "kafka_api_key widget is empty"
 assert api_secret, "kafka_api_secret widget is empty"
 
 # Target tables (Unity Catalog)
-TARGET_TABLE      = "ecommerce.bronze.clickstream_raw"
-DEAD_LETTER_TABLE = "ecommerce.bronze.clickstream_dead_letter"
+TARGET_TABLE      = "shopmetrics_ecommerce.bronze.clickstream_raw"
+DEAD_LETTER_TABLE = "shopmetrics_ecommerce.bronze.clickstream_dead_letter"
 
 # Checkpoint stored in Unity Catalog volume (NFR-007 — survives restarts)
-CHECKPOINT_PATH = "/Volumes/ecommerce/bronze/raw_data/checkpoints/clickstream_bronze"
+CHECKPOINT_PATH = "/Volumes/shopmetrics_ecommerce/bronze/raw_data/checkpoints/clickstream_bronze"
 
 TOPIC = "clickstream-events"
 
@@ -118,6 +118,10 @@ raw_stream = (
     .option("kafka.metadata.max.age.ms", "300000")
     .load()
 )
+
+# COMMAND ----------
+
+raw_stream.printSchema()
 
 # COMMAND ----------
 
