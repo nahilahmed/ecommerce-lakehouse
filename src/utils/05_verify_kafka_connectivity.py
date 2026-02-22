@@ -83,6 +83,8 @@ streaming_options = {**kafka_options}
 streaming_options.pop("endingOffsets", None)
 streaming_options["startingOffsets"] = "latest"
 
+CHECKPOINT_PATH = "/Volumes/ecommerce/bronze/raw_data/checkpoints/kafka_connectivity_test"
+
 stream_query = (
     spark.readStream
     .format("kafka")
@@ -91,6 +93,7 @@ stream_query = (
     .writeStream
     .format("memory")
     .queryName("kafka_connectivity_test")
+    .option("checkpointLocation", CHECKPOINT_PATH)
     .trigger(availableNow=True)
     .start()
 )

@@ -5,6 +5,15 @@
 
 ## Recent Updates
 
+### 2026-02-22 — Confluent Kafka Connectivity Verified
+- ✅ Signed up for Confluent Cloud, created free Basic cluster
+- ✅ Created topic `clickstream-events` (3 partitions, 24-hr retention)
+- ✅ Created `src/utils/05_verify_kafka_connectivity.py` — widget-based connectivity notebook
+- ✅ Debugged Free Edition constraints: `startingOffsets=latest` on empty topic, infinite trigger not supported, implicit checkpoint not supported
+- ✅ Both connectivity tests pass (batch schema check + AvailableNow streaming)
+- ⏳ Store credentials in Databricks Secret Scope (CLI setup pending)
+- 📋 **Next:** Day 11 — Clickstream producer (`data-generator/produce_clickstream.py`)
+
 ### 2026-02-20 — Gold Layer Complete + Daily Sales Dashboard
 - ✅ Created Gold master orchestration notebook (`src/gold/ingest_gold_tables.py`) with watermark-based metadata-driven execution
 - ✅ Created `src/gold/table_notebooks/daily_sales_summary.py` (FR-006) — date/category revenue aggregations
@@ -13,7 +22,6 @@
 - ✅ Fixed bugs in customer_ltv and product_performance notebooks
 - ✅ Created Databricks Lakeview dashboard: `dashboards/Shopcommerce - Daily Sales Visualization.lvdash.json`
 - ✅ Updated `src/utils/04_gold_metadata_setup.py` with all three Gold table registrations + dashboard config
-- 📋 **Next:** Confluent Kafka setup (Day 10) — clickstream streaming pipeline
 
 ### 2026-02-19 — Silver Layer Review & Optimization
 - ✅ Reviewed unified silver ingestion script (`src/silver/ingest_silver_tables.py`)
@@ -86,17 +94,19 @@
 - [ ] Verify NFR-001: pipeline completes within 60 minutes
 
 ### Day 10 — Confluent Kafka Cluster
-- [ ] Sign up for Confluent Cloud, create free Basic cluster
-- [ ] Create topic: clickstream-events (3 partitions, 24-hr retention)
-- [ ] Store API key + secret for Databricks Secret Scope
+- [x] Sign up for Confluent Cloud, create free Basic cluster
+- [x] Create topic: clickstream-events (3 partitions, 24-hr retention)
+- [x] Verify connectivity from Databricks (`src/utils/05_verify_kafka_connectivity.py`)
+- [ ] Store API key + secret in Databricks Secret Scope (via CLI)
 
 ### Day 11 — Clickstream Producer
-- [ ] Create data-generator/produce_clickstream.py
-- [ ] Test locally, verify messages in Confluent Cloud UI
+- [x] Create `data-generator/produce_clickstream.py` — session-aware, ~1 event/sec
+- [x] Test locally, verified messages flowing in Confluent Cloud UI
 
 ### Day 12 — Streaming Bronze
-- [ ] Create Databricks Secret Scope for Confluent credentials
-- [ ] Create src/bronze/stream_clickstream.py — Structured Streaming from Kafka
+- [ ] Store API key + secret in Databricks Secret Scope (via CLI)
+- [x] Create `src/bronze/stream_clickstream.py` — Structured Streaming from Kafka
+- [ ] Run notebook, verify rows in `ecommerce.bronze.clickstream_raw`
 - [ ] Verify sub-5-minute latency (NFR-002)
 
 ### Day 13 — Streaming Silver + Gold
