@@ -98,6 +98,19 @@
 # MAGIC     TRUE,
 # MAGIC     3,
 # MAGIC     NULL
+# MAGIC   ),
+# MAGIC   -- 4. Hourly Traffic Metrics (FR-009)
+# MAGIC   --    Grain: event_hour — re-aggregates all sessions for affected hours
+# MAGIC   --    Source: clickstream_sessions (Silver streaming table)
+# MAGIC   (
+# MAGIC     'gold_hourly_traffic',
+# MAGIC     'hourly_traffic_metrics',
+# MAGIC     'hourly_traffic_metrics',
+# MAGIC     array('shopmetrics_ecommerce.silver.clickstream_sessions'),
+# MAGIC     'incremental_merge',
+# MAGIC     TRUE,
+# MAGIC     4,
+# MAGIC     NULL
 # MAGIC   )
 
 # COMMAND ----------

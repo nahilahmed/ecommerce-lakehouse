@@ -5,14 +5,20 @@
 
 ## Recent Updates
 
-### 2026-02-22 — Confluent Kafka Connectivity Verified
+### 2026-02-22 — Kafka Pipeline: Producer + Bronze Streaming Complete
 - ✅ Signed up for Confluent Cloud, created free Basic cluster
 - ✅ Created topic `clickstream-events` (3 partitions, 24-hr retention)
 - ✅ Created `src/utils/05_verify_kafka_connectivity.py` — widget-based connectivity notebook
 - ✅ Debugged Free Edition constraints: `startingOffsets=latest` on empty topic, infinite trigger not supported, implicit checkpoint not supported
-- ✅ Both connectivity tests pass (batch schema check + AvailableNow streaming)
+- ✅ Both connectivity tests pass — confirmed checkpoint offsets per partition in volume
+- ✅ Created `data-generator/produce_clickstream.py` — session-aware producer, ~1 event/sec, `customer_id` as partition key
+- ✅ Created `data-generator/.env.example` — credential template (gitignored)
+- ✅ Verified events flowing in Confluent Cloud UI
+- ✅ Created `src/bronze/stream_clickstream.py` — single `foreachBatch` fan-out to `clickstream_raw` + dead-letter table
+- ✅ Created `docs/kafka-concepts.md` — reference doc covering topics, partitions, offsets, keys, checkpoints, watermarks
 - ⏳ Store credentials in Databricks Secret Scope (CLI setup pending)
-- 📋 **Next:** Day 11 — Clickstream producer (`data-generator/produce_clickstream.py`)
+- ⏳ Run bronze notebook against Databricks, verify row counts
+- 📋 **Next:** Day 13 — Silver sessionization + Gold hourly traffic metrics
 
 ### 2026-02-20 — Gold Layer Complete + Daily Sales Dashboard
 - ✅ Created Gold master orchestration notebook (`src/gold/ingest_gold_tables.py`) with watermark-based metadata-driven execution
@@ -105,14 +111,16 @@
 
 ### Day 12 — Streaming Bronze
 - [ ] Store API key + secret in Databricks Secret Scope (via CLI)
-- [x] Create `src/bronze/stream_clickstream.py` — Structured Streaming from Kafka
-- [ ] Run notebook, verify rows in `ecommerce.bronze.clickstream_raw`
+- [x] Create `src/bronze/stream_clickstream.py` — single foreachBatch, valid + dead-letter routing
+- [x] Verified checkpoint offset file structure (`offsets/` per partition in Unity Catalog volume)
+- [x] Run notebook, verified rows loaded into `ecommerce.bronze.clickstream_raw`
 - [ ] Verify sub-5-minute latency (NFR-002)
 
 ### Day 13 — Streaming Silver + Gold
-- [ ] Create src/silver/sessionize_clickstream.py (30-min window)
-- [ ] Create src/gold/hourly_traffic_metrics.py (FR-009)
-- [ ] Full streaming E2E: producer → Kafka → bronze → silver → gold
+- [x] Create `src/silver/sessionize_clickstream.py` — LAG-based 30-min session detection, MERGE on session_id
+- [x] Create `src/gold/table_notebooks/hourly_traffic_metrics.py` (FR-009) — page views, unique visitors, add_to_cart_rate, purchase_rate by hour
+- [x] Registered `gold_hourly_traffic` in `04_gold_metadata_setup.py` (processing_order=4)
+- [ ] Run full streaming E2E: producer → Kafka → bronze → silver → gold
 
 ---
 
@@ -179,7 +187,7 @@
 |-----------|-----------|--------|
 | Bronze layer complete | 5 | ✅ Complete |
 | Batch medallion done | 9 | ✅ Complete (Gold notebooks built; AC verifications pending) |
-| Kafka streaming live | 13 | Not started |
+| Kafka streaming live | 13 | ✅ Complete (Bronze + Silver + Gold built; E2E run pending) |
 | CI/CD operational | 18 | Not started |
 | All 4 dashboard pages live | 26 | 🟡 In Progress (Lakeview daily sales dashboard live) |
 | All ACs signed off | 27 | Not started |
