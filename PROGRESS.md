@@ -5,6 +5,15 @@
 
 ## Recent Updates
 
+### 2026-02-24 — Streaming E2E Complete + Silver & Gold Streaming Built
+- ✅ Created `src/silver/sessionize_clickstream.py` — LAG-based 30-min session detection, MERGE on session_id, watermark via `streaming_watermarks` table
+- ✅ Created `src/gold/table_notebooks/hourly_traffic_metrics.py` (FR-009) — page views, unique visitors, add_to_cart_rate, purchase_rate by hour
+- ✅ Registered `gold_hourly_traffic` in `04_gold_metadata_setup.py` (processing_order=4)
+- ✅ Full streaming E2E run: producer → Kafka → bronze → silver → gold
+- ✅ Added `pipeline_type` column to `gold_metadata` (`batch` | `streaming`) — routes correct tables to each job
+- ✅ Updated `ingest_gold_tables.py` with `pipeline_type` widget — batch job passes `batch`, streaming job passes `streaming`
+- 📋 **Next:** Week 3 — CI/CD, testing, Asset Bundles (Day 14+)
+
 ### 2026-02-22 — Kafka Pipeline: Producer + Bronze Streaming Complete
 - ✅ Signed up for Confluent Cloud, created free Basic cluster
 - ✅ Created topic `clickstream-events` (3 partitions, 24-hr retention)
@@ -120,7 +129,7 @@
 - [x] Create `src/silver/sessionize_clickstream.py` — LAG-based 30-min session detection, MERGE on session_id
 - [x] Create `src/gold/table_notebooks/hourly_traffic_metrics.py` (FR-009) — page views, unique visitors, add_to_cart_rate, purchase_rate by hour
 - [x] Registered `gold_hourly_traffic` in `04_gold_metadata_setup.py` (processing_order=4)
-- [ ] Run full streaming E2E: producer → Kafka → bronze → silver → gold
+- [x] Run full streaming E2E: producer → Kafka → bronze → silver → gold
 
 ---
 
@@ -187,7 +196,7 @@
 |-----------|-----------|--------|
 | Bronze layer complete | 5 | ✅ Complete |
 | Batch medallion done | 9 | ✅ Complete (Gold notebooks built; AC verifications pending) |
-| Kafka streaming live | 13 | ✅ Complete (Bronze + Silver + Gold built; E2E run pending) |
+| Kafka streaming live | 13 | ✅ Complete |
 | CI/CD operational | 18 | Not started |
 | All 4 dashboard pages live | 26 | 🟡 In Progress (Lakeview daily sales dashboard live) |
 | All ACs signed off | 27 | Not started |

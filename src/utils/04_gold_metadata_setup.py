@@ -30,6 +30,9 @@
 # MAGIC   -- Watermark (tracks last silver_updated_at successfully consumed by this gold table)
 # MAGIC   silver_max_watermark TIMESTAMP COMMENT 'Last silver_updated_at processed — updated after each successful run',
 # MAGIC
+# MAGIC   -- Pipeline routing
+# MAGIC   pipeline_type     STRING NOT NULL COMMENT 'batch | streaming — controls which job runs this table',
+# MAGIC
 # MAGIC   -- Processing Config
 # MAGIC   is_active         BOOLEAN DEFAULT TRUE COMMENT 'Enable/disable processing',
 # MAGIC   processing_order  INT COMMENT 'Execution sequence (1, 2, 3...)',
@@ -53,6 +56,27 @@
 # COMMAND ----------
 
 # MAGIC %sql
+# MAGIC -- Add pipeline_type column to existing table (safe to re-run — fails silently if already exists)
+# MAGIC ALTER TABLE shopmetrics_ecommerce.metadata.gold_metadata
+# MAGIC ADD COLUMN IF NOT EXISTS pipeline_type STRING
+
+# COMMAND ----------
+
+# MAGIC %sql
+# MAGIC -- Backfill pipeline_type for existing rows WITHOUT resetting watermarks.
+# MAGIC -- WHERE pipeline_type IS NULL makes this safe to re-run.
+# MAGIC UPDATE shopmetrics_ecommerce.metadata.gold_metadata
+# MAGIC SET pipeline_type = CASE table_id
+# MAGIC     WHEN 'gold_daily_sales'         THEN 'batch'
+# MAGIC     WHEN 'gold_customer_ltv'        THEN 'batch'
+# MAGIC     WHEN 'gold_product_performance' THEN 'batch'
+# MAGIC     WHEN 'gold_hourly_traffic'      THEN 'streaming'
+# MAGIC END
+# MAGIC WHERE pipeline_type IS NULL
+
+# COMMAND ----------
+
+# MAGIC %sql
 # MAGIC DELETE FROM Shopmetrics_ecommerce.metadata.gold_metadata
 # MAGIC where 1 = 1
 
@@ -61,7 +85,7 @@
 # MAGIC %sql
 # MAGIC -- Insert metadata for all gold tables
 # MAGIC INSERT INTO shopmetrics_ecommerce.metadata.gold_metadata
-# MAGIC (table_id, table_name, notebook_name, source_tables, aggregation_type, is_active, processing_order, silver_max_watermark)
+# MAGIC (table_id, table_name, notebook_name, source_tables, aggregation_type, pipeline_type, is_active, processing_order, silver_max_watermark)
 # MAGIC VALUES
 # MAGIC   -- 1. Daily Sales Summary (FR-006)
 # MAGIC   --    Grain: (order_date, category) — past dates are immutable, only recent dates change
@@ -71,6 +95,7 @@
 # MAGIC     'daily_sales_summary',
 # MAGIC     array('shopmetrics_ecommerce.silver.orders_clean', 'shopmetrics_ecommerce.silver.dim_products'),
 # MAGIC     'incremental_merge',
+# MAGIC     'batch',
 # MAGIC     TRUE,
 # MAGIC     1,
 # MAGIC     NULL
@@ -83,6 +108,7 @@
 # MAGIC     'customer_ltv',
 # MAGIC     array('shopmetrics_ecommerce.silver.orders_clean', 'shopmetrics_ecommerce.silver.dim_customers'),
 # MAGIC     'incremental_merge',
+# MAGIC     'batch',
 # MAGIC     TRUE,
 # MAGIC     2,
 # MAGIC     NULL
@@ -95,6 +121,7 @@
 # MAGIC     'product_performance',
 # MAGIC     array('shopmetrics_ecommerce.silver.orders_clean', 'shopmetrics_ecommerce.silver.dim_products'),
 # MAGIC     'incremental_merge',
+# MAGIC     'batch',
 # MAGIC     TRUE,
 # MAGIC     3,
 # MAGIC     NULL
@@ -108,6 +135,7 @@
 # MAGIC     'hourly_traffic_metrics',
 # MAGIC     array('shopmetrics_ecommerce.silver.clickstream_sessions'),
 # MAGIC     'incremental_merge',
+# MAGIC     'streaming',
 # MAGIC     TRUE,
 # MAGIC     4,
 # MAGIC     NULL

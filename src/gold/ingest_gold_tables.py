@@ -12,6 +12,11 @@
 # MAGIC
 # MAGIC **Watermark ownership:** Master owns `gold_metadata` — child notebooks are pure
 # MAGIC transformation and have no metadata dependency.
+# MAGIC
+# MAGIC **Pipeline routing:**
+# MAGIC - Pass `pipeline_type=batch` (default) for the daily batch job
+# MAGIC - Pass `pipeline_type=streaming` for the 30-min streaming job
+# MAGIC - Only gold tables whose `gold_metadata.pipeline_type` matches are executed
 
 # COMMAND ----------
 
@@ -19,15 +24,25 @@ from pyspark.sql import functions as f
 
 # COMMAND ----------
 
+# Widget — set to 'streaming' when called from the streaming Databricks job
+dbutils.widgets.text("pipeline_type", "batch")
+pipeline_type = dbutils.widgets.get("pipeline_type")
+
+assert pipeline_type in ("batch", "streaming"), \
+    f"pipeline_type must be 'batch' or 'streaming', got: '{pipeline_type}'"
+
+# COMMAND ----------
+
 # DBTITLE 1,Load Active Gold Metadata (ordered by processing_order)
 gold_meta = (
     spark.table('shopmetrics_ecommerce.metadata.gold_metadata')
     .filter(f.col('is_active') == True)
+    .filter(f.col('pipeline_type') == pipeline_type)
     .orderBy('processing_order')
 )
 
 print("\n" + "="*80)
-print("GOLD LAYER BATCH PROCESSING — DEPENDENCY-ORDERED EXECUTION")
+print(f"GOLD LAYER PROCESSING — pipeline_type={pipeline_type.upper()} — DEPENDENCY-ORDERED EXECUTION")
 print("="*80)
 
 # COMMAND ----------
