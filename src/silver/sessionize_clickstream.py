@@ -39,9 +39,9 @@ from delta.tables import DeltaTable
 
 # COMMAND ----------
 
-SOURCE_TABLE  = "ecommerce.bronze.clickstream_raw"
-TARGET_TABLE  = "ecommerce.silver.clickstream_sessions"
-WATERMARK_TABLE = "ecommerce.metadata.streaming_watermarks"
+SOURCE_TABLE  = "shopmetrics_ecommerce.bronze.clickstream_raw"
+TARGET_TABLE  = "shopmetrics_ecommerce.silver.clickstream_sessions"
+WATERMARK_TABLE = "shopmetrics_ecommerce.metadata.streaming_watermarks"
 
 # 30-minute session inactivity threshold (BRD §7)
 SESSION_GAP_MINUTES = 30

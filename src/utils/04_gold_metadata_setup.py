@@ -58,7 +58,7 @@
 # MAGIC %sql
 # MAGIC -- Add pipeline_type column to existing table (safe to re-run — fails silently if already exists)
 # MAGIC ALTER TABLE shopmetrics_ecommerce.metadata.gold_metadata
-# MAGIC ADD COLUMN IF NOT EXISTS pipeline_type STRING
+# MAGIC ADD COLUMN pipeline_type STRING
 
 # COMMAND ----------
 
@@ -145,7 +145,7 @@
 
 # MAGIC %sql
 # MAGIC -- Verify
-# MAGIC SELECT table_id, table_name, aggregation_type, processing_order, silver_max_watermark
+# MAGIC SELECT *
 # MAGIC FROM shopmetrics_ecommerce.metadata.gold_metadata
 # MAGIC ORDER BY processing_order
 
